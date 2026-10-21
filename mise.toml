@@ -1,0 +1,6 @@
+[tools]
+dotnet = "10"
+
+[env]
+# the SDK itself needs ICU, and this machine has no libicu
+DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = "1"

@@ -1,0 +1,13 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" MinWidth="320" MinHeight="200" d:DesignWidth="960" d:DesignHeight="600"
+        x:Class="OpenColo.UI.MainWindow"
+        Title="OpenColo"
+		Background="Black" Width="960" Height="720">
+		<Viewbox HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Stretch="Uniform" StretchDirection="Both">
+			<!-- mode 13h pixels are not square: 320x200 is shown at 4:3 -->
+			<Image Name="mainImage" Width="320" Height="240" Stretch="Fill" RenderOptions.BitmapInterpolationMode="None"/>
+		</Viewbox>
+</Window>

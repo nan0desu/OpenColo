@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>OpenColo</RootNamespace>
+    <Title>OpenColo - Sid Meier's Colonization (DOS) running on a virtual CPU</Title>
+    <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
+    <!-- the Disassembler's colonization-runnable output (Segment_*, Overlay_*, CodeDispatch, OpenColoGameSegments) -->
+    <GeneratedCodePath Condition="'$(GeneratedCodePath)' == ''">$(MSBuildProjectDirectory)/Generated</GeneratedCodePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Generated/**" />
+    <Compile Include="$(GeneratedCodePath)/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+  </ItemGroup>
+
+</Project>
