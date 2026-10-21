@@ -70,6 +70,17 @@ same could be done for Colonization, and it is what started this project. Rajko 
 the first version of the Disassembler, which generates all of the game code here, and the
 virtual CPU this host is built on. Thank you, Rajko, for the work and for sharing it.
 
+## License
+
+OpenColo is licensed under the GNU General Public License v3.0, see `LICENSE`.
+
+`src/VirtualCPU` and `src/IRB` are based on OpenCivOne by Rajko Horvat and remain under the
+MIT License, see `LICENSE.OpenCivOne`. Changes made to them here are under GPLv3.
+
+The license covers this repository only. The code generated from VICEROY.EXE in
+`src/Generated` is a translation of the original game. It isn't part of OpenColo and isn't
+covered by this license.
+
 ## Legal
 
 Sid Meier's Colonization, MicroProse and all other trademarks are the property of their
