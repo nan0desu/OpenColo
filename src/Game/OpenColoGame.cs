@@ -47,9 +47,10 @@ namespace OpenColo
 		/// <summary>Runs on the game thread until the program exits.</summary>
 		public void Start()
 		{
-			// Without a sound driver (-c sets the sound letter to N). Not -o: that tells the start menu
-			// OPENING has left its picture on the screen, and the menu copies its background from there
-			string arguments = Environment.GetEnvironmentVariable("OPENCOLO_ARGS") ?? "-c:N";
+			// The sound driver is the one CONFIG.COL names (-c:N would turn it off). Not -o: that tells
+			// the start menu OPENING has left its picture on the screen, and the menu copies its
+			// background from there
+			string arguments = Environment.GetEnvironmentVariable("OPENCOLO_ARGS") ?? "";
 
 			SetUpLowMemory();
 			LoadExecutable($"{VCPU.DefaultGamePath}VICEROY.EXE", arguments);
@@ -65,14 +66,15 @@ namespace OpenColo
 				this.oLog.CallStack.Split(Environment.NewLine).Length > 2 ||
 				this.oCPU.Memory.ReadUInt16(DataSegment, 0x822) != 0;
 
-			// any #SOUND.COL, NSOUND.COL included, loads the host's stand-in
+			// RSOUND.COL runs on an emulated MT-32, any other #SOUND.COL (NSOUND.COL included) loads the
+			// host's stand-in
 			SoundDriver sound = new(this);
 			this.oCPU.LoadOverlayHandler = (name, segment) =>
 			{
 				if (name.Length != 10 || !name.EndsWith("SOUND.COL"))
 					return false;
 
-				sound.Load(segment);
+				sound.Load(name, segment);
 				return true;
 			};
 

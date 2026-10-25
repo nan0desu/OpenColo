@@ -14,7 +14,10 @@ This repository is the host: the CPU, DOS/BIOS services, a mode 13h VGA, and an 
 - `src/VirtualCPU/VCPUVGA.cs` - A000:0000 framebuffer and DAC palette, read by the UI
 - `src/Game/OpenColoGame.cs` - root object the generated segment classes hang off; loads VICEROY.EXE,
   sets up the PSP and environment, and stands in for the game's timer interrupt and the mouse driver's event calls
-- `src/Generated` - the Disassembler's `colonization-runnable` output (not in git, see below)
+- `src/Game/SoundDriver.cs` - the `#SOUND.COL` drivers: RSOUND.COL on an MT-32, a stand-in for the others
+- `src/Audio` - OpenAL output, the MT-32 (munt) and the MPU-401 in front of it
+- `src/Generated` - the Disassembler's `colonization-runnable` output (not in git, see below):
+  VICEROY.EXE and RSOUND.COL
 - `src/UI` - Avalonia window, BIOS key mapping
 - `docs/startup.md` - how the original starts: OPENING/VICEROY/CLOSING chain, `main()`, CONFIG.COL, command-line switches
 - `docs/timer.md` - the game's own INT 8 handler, PIT rate, tick counters, water color cycling
@@ -49,9 +52,21 @@ OPENCOLO_PATH=~/dos/COLONIZE mise exec -- dotnet run --project src/OpenColo.cspr
 
 - `OPENCOLO_PATH` is the directory with the original DOS game files; without it the
   executable's own directory is used.
-- `OPENCOLO_ARGS` is the VICEROY command line, `-c:N` by default: no sound driver
-  (see [docs/startup.md](docs/startup.md#command-line-switches)). Don't add `-o` without
-  OPENING: the start menu then takes its background from the screen OPENING left behind.
+- `OPENCOLO_ARGS` is the VICEROY command line, empty by default (see
+  [docs/startup.md](docs/startup.md#command-line-switches)). `-c:N` turns the sound driver
+  off. Don't add `-o` without OPENING: the start menu then takes its background from the
+  screen OPENING left behind.
+- The sound device is the one in the game's `CONFIG.COL`, as set up by its INSTALL. The
+  digitized effects from `COLDIG.BIN` play through OpenAL with any device. For Roland
+  (`R`), the original driver plays the music and the MIDI part of the effects on an emulated
+  MT-32 or CM-32L. That needs [munt](https://github.com/munt/munt)'s libmt32emu (the
+  `mt32emu` package on Fedora) and the ROMs:
+  - `OPENCOLO_MT32_ROMS` is the directory with the ROM files, `~/.config/dosbox/mt32-roms` by
+    default, the same as DOSBox Staging's. Halves of a ROM are merged.
+  - `OPENCOLO_MT32` picks the machine by its munt ID (`cm32l_1_02`, `mt32_2_07`, ...). By
+    default it is the first of CM-32L 1.02, CM-32L 1.00, then the MT-32s from the newest
+    that has a complete set of ROMs.
+  Without munt or the ROMs, and for the other devices, there is no music yet.
 - `COLONIZE`, if set, is passed into the game's environment (`COLONIZE=MULTI`).
 - `OPENCOLO_LOG=1` writes `Log.txt` next to the executable.
 - F12 in the window writes `Dump.bin` (conventional memory), `Dump.txt` (registers and the

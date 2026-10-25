@@ -159,21 +159,76 @@ plays samples, presumably the others; 15 isn't used by any effect.
 The CD version also has a Windows installer with WAV files (effects and national
 anthems), which the DOS game doesn't use.
 
-## Generated code
+## RSOUND.COL
 
-The driver code isn't part of VICEROY.EXE. The Disassembler's `Seg0{A,G,P,R}Snd`
-files are a partial attempt at the four `.COL` files.
+The Roland driver, for device codes `30h` and `31h`. Read from the file; the offsets
+are in its load image.
 
-OpenColo doesn't run a driver. When the game loads any `?SOUND.COL` (`NSOUND.COL`
-from the default `-c:N` included), `SoundDriver` writes the header fields the loader
-reads into the block (`28h` entry segment, `2Ah`/`2Ch` image end, five entry offsets
-at `32h`) and registers the five entries in `CodeDispatch.Native`. The request entry
-plays the effect's sample from `COLDIG.BIN` through OpenAL, queued like the original;
-music requests are accepted and not played yet. Request `8` then answers "playing"
-until `0`, `1` or stop: the music manager `F0_129f_00f6` polls it and starts the next
-piece as soon as it is 0, which without music would cycle through the pieces.
+- One code segment at `0`, data at `333h` paragraphs (DS = load segment + `333h`).
+  The image is `B44Ch` bytes, plus `200h` of BSS. 16 relocations.
+- Init (`0969`) takes the seven `CONFIG.COL` words as arguments, `DS:260a` first.
+  The first is the MPU-401 port (`330h`); the driver keeps it in `[5F]` and the
+  status port in `[61]`. `035b` resets the MPU-401 (`FFh` to the status port, waits
+  for bit 7 of the status to clear, expects `FEh` on the data port, five tries), then
+  init sends `3Fh`, UART mode, through `01ed` (waits for bit 6 of the status to clear,
+  writes the command, reads the data port until `FEh`). Everything after that is plain
+  MIDI.
+- The fifth word (`DS:2612`) is the digital device. When it is `11h`-`2Fh`, init calls
+  `26c7` with words 4-7 (port, device, IRQ, DMA): a Sound Blaster driver that loads
+  `COLDIG.BIN` into EMS (`29a2`, INT 67h) and stores 0 in `[50]` on success.
+  `[50]` starts out as `FFFFh`.
+- The request entry (`09c6`) dispatches through four tables in the code segment:
+  `2afd` commands (highest in `[3C4C]`, 8), `2b0f` music (`[3C4E]`, 3Fh), `2b53`
+  `8020h`-`8026h` (`[3C50]`), `2b63` effects (`[3C52]`, 5Dh).
+- An effect handler sets AX to a sample and calls `3317`, which plays it through the
+  Sound Blaster (`2846`) only while `[50]` is 0, then sets CX to MIDI data and goes to
+  `05be`. The samples are those of `ASOUND.COL`, except that `5Ah` plays sample 15.
+  `46h` and `47h` are MIDI only.
+- The music is a byte code read through `[8144]`, interpreted by `0c7a`; opcodes
+  `BEh`-`FFh` go through the table at `1938`. Opcode `C4h` and a word calls code in
+  the driver: `2c8c` and `2d26` in the music data. Music handler `2c08` leaves `2c48`
+  or `2c6a` in `[91A]`, which the tick (`2ac8`) calls.
+- A Roland SysEx template (`F0 41 10 16 12`, data set to the MT-32) is at `[65]`.
+  The string `[MpsColoniz]` at `[87]` goes to the MT-32's display at init.
+- Stop (`0a3d`) resets the MPU-401 again and, in `0a6e`, reads the time from the RTC
+  (INT 1Ah function 2) and sets the DOS time (INT 21h function 2Dh) from it. The game's
+  timer makes the DOS clock run fast (see [timer.md](timer.md#int-8-handler)).
+
+## In OpenColo
+
+The driver code isn't part of VICEROY.EXE. The Disassembler's readable output has
+`Seg0{A,G,P,R}Snd`, a partial attempt at the four `.COL` files.
+
+RSOUND.COL runs as generated code (`RSound`, from the Disassembler's
+`ProcessSoundDriverRunnable`) on an emulated MT-32 or CM-32L, when munt's
+libmt32emu and the ROMs are there. Its code can only run at the segment it was
+generated for, `9400h`, so `SoundDriver`:
+
+- takes `9400h`-`9FFFh` away from DOS and loads the image there, relocated;
+- writes the header fields the game reads into the game's block (`28h` entry segment
+  `9400h`, `2Ah`/`2Ch` image end right after the header, so the block shrinks to it,
+  and the five entry offsets at `32h`), so the game's vectors lead to `9400h`;
+- registers the driver's functions in `CodeDispatch.Native` (`CreateRSound`) and
+  connects an MPU-401 at `330h` that passes the MIDI bytes to munt.
+
+The digitized effects are played by the host, not the Sound Blaster code: init runs
+with the digital device argument set to 0, so the driver leaves the Sound Blaster and
+EMS alone, and the request entry plays the effect's sample from `COLDIG.BIN` when
+`CONFIG.COL` has a digital device. The MIDI part of each effect plays on the MT-32,
+as in the original.
+
+The C# copy of the game's INT 8 handler calls the status and tick entries like the
+original (see [timer.md](timer.md#int-8-handler)).
+
+Any other driver, and RSOUND.COL without munt or ROMs, gets a stand-in. When the game
+loads it, `SoundDriver` writes the same header fields into the block, pointing at
+five host functions in `CodeDispatch.Native`. The request entry plays the effect's
+sample from `COLDIG.BIN` through OpenAL, queued like the original; music requests are
+accepted and not played. Request `8` then answers "playing" until `0`, `1` or stop:
+the music manager `F0_129f_00f6` polls it and starts the next piece as soon as it is
+0, which without music would cycle through the pieces.
 
 ## Open questions
 
 - The command codes `2`-`7`.
-- The music data format in the drivers.
+- The music data format of the other drivers.
