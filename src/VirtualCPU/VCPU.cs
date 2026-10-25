@@ -45,6 +45,10 @@ namespace IRB.VirtualCPU
 		public Action? TimerEventHandler = null;
 		// INT 21h/4B03h: the DOS file name and the load segment; true if the host has put it there
 		public Func<string, ushort, bool>? LoadOverlayHandler = null;
+		// devices the host adds (the MPU-401), for ports the CPU doesn't know: the byte read, or null
+		// if the port isn't theirs; and true if a write was theirs
+		public Func<ushort, byte?>? PortInputHandler = null;
+		public Func<ushort, byte, bool>? PortOutputHandler = null;
 		// whether the program ending with this exit code is worth a dump; without it, any code but 0
 		public Func<int, bool>? DumpOnExit = null;
 		// set by the UI (F12), the game thread writes the dump at its next memory access
@@ -1774,6 +1778,9 @@ namespace IRB.VirtualCPU
 					return this.oVGA.ReadInputStatus();
 
 				default:
+					if (this.PortInputHandler?.Invoke(port) is byte input)
+						return input;
+
 					this.oLog.WriteLine($"Input byte from port 0x{port:x4}");
 					break;
 			}
@@ -1884,6 +1891,9 @@ namespace IRB.VirtualCPU
 					break;
 
 				default:
+					if (this.PortOutputHandler?.Invoke(port, value) == true)
+						break;
+
 					this.oLog.WriteLine($"Output to port 0x{port:x4}, byte value 0x{value:x2}");
 					break;
 			}
@@ -2222,6 +2232,11 @@ namespace IRB.VirtualCPU
 							DOSGetCurrentTime();
 							break;
 
+						case 0x2d:
+							// Set Time: accepted, the host clock stays as it is
+							this.oAX.LowUInt8 = 0;
+							break;
+
 						case 0x2f:
 							// Get Disk Transfer Address
 							this.oES.UInt16 = (ushort)(this.uiDOSDTA >> 4);
@@ -2308,6 +2323,25 @@ namespace IRB.VirtualCPU
 
 						default:
 							throw new Exception($"Unknown 0x21 interrupt 0x{this.oAX.HighUInt8:x2}");
+					}
+					break;
+
+				case 0x1a:
+					switch (this.oAX.HighUInt8)
+					{
+						case 0x2:
+							// RTC time in BCD: CH hours, CL minutes, DH seconds, DL daylight saving.
+							// The Roland driver sets the DOS time from it when it stops.
+							DateTime now = DateTime.Now;
+							this.oCX.HighUInt8 = ToBCD(now.Hour);
+							this.oCX.LowUInt8 = ToBCD(now.Minute);
+							this.oDX.HighUInt8 = ToBCD(now.Second);
+							this.oDX.LowUInt8 = 0;
+							this.oFlags.C = false;
+							break;
+
+						default:
+							throw new Exception($"Unknown 0x1a interrupt 0x{this.oAX.HighUInt8:x2}");
 					}
 					break;
 
@@ -3161,6 +3195,11 @@ namespace IRB.VirtualCPU
 		/// <para>Returns: CH = hour (0-23); CL = minutes (0-59); DH = seconds (0-59); DL = hundredths (0-99)</para>
 		/// <para>Remarks: retrieves DOS maintained clock time</para>
 		/// </summary>
+		private static byte ToBCD(int value)
+		{
+			return (byte)(((value / 10) << 4) | (value % 10));
+		}
+
 		private void DOSGetCurrentTime()
 		{
 			DateTime value = DateTime.Now;

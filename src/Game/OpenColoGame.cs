@@ -179,10 +179,13 @@ namespace OpenColo
 		/// registers the way DOS leaves them. The overlays after the load module aren't loaded,
 		/// their code is in the generated classes.
 		/// </summary>
-		private void LoadExecutable(string path, string arguments)
+		/// <summary>
+		/// The load module of an MZ file at segment, relocated, as INT 21h/4B03h would load it.
+		/// Returns its size in bytes.
+		/// </summary>
+		public static int LoadImage(VCPUMemory memory, string path, ushort loadSegment)
 		{
 			byte[] file = File.ReadAllBytes(path);
-			VCPUMemory memory = this.oCPU.Memory;
 
 			if (BitConverter.ToUInt16(file, 0) != 0x5a4d)
 				throw new Exception($"'{path}' is not an MS-DOS executable");
@@ -193,16 +196,28 @@ namespace OpenColo
 			int headerSize = BitConverter.ToUInt16(file, 8) * 16;
 			int relocationTable = BitConverter.ToUInt16(file, 0x18);
 			int imageSize = (lastPageBytes == 0 ? pages * 512 : (pages - 1) * 512 + lastPageBytes) - headerSize;
+			// the BSS: the memory may have been used before
+			int bssSize = BitConverter.ToUInt16(file, 0x0a) * 16;
 
-			memory.WriteBlock(LoadSegment, 0, file, headerSize, imageSize);
+			memory.WriteBlock(loadSegment, 0, file, headerSize, imageSize);
+			memory.WriteBlock(VCPU.ToLinearAddress(loadSegment, 0) + (uint)imageSize, new byte[bssSize], 0, bssSize);
 
 			for (int i = 0; i < relocationCount; i++)
 			{
 				ushort offset = BitConverter.ToUInt16(file, relocationTable + i * 4);
-				ushort segment = (ushort)(LoadSegment + BitConverter.ToUInt16(file, relocationTable + i * 4 + 2));
+				ushort segment = (ushort)(loadSegment + BitConverter.ToUInt16(file, relocationTable + i * 4 + 2));
 
-				memory.WriteUInt16(segment, offset, (ushort)(memory.ReadUInt16(segment, offset) + LoadSegment));
+				memory.WriteUInt16(segment, offset, (ushort)(memory.ReadUInt16(segment, offset) + loadSegment));
 			}
+
+			return imageSize;
+		}
+
+		private void LoadExecutable(string path, string arguments)
+		{
+			VCPUMemory memory = this.oCPU.Memory;
+			byte[] file = File.ReadAllBytes(path);
+			int imageSize = LoadImage(memory, path, LoadSegment);
 
 			// The program owns all memory from its PSP up, the C runtime shrinks the block
 			uint pspAddress = VCPU.ToLinearAddress(PSPSegment, 0);
@@ -244,7 +259,7 @@ namespace OpenColo
 			this.oCPU.BP.UInt16 = 0;
 			this.oCPU.Flags.D = false;
 
-			this.oLog.WriteLine($"Loaded '{path}', {imageSize} bytes, {relocationCount} relocations, command line '{arguments}'");
+			this.oLog.WriteLine($"Loaded '{path}', {imageSize} bytes, {BitConverter.ToUInt16(file, 6)} relocations, command line '{arguments}'");
 		}
 		#endregion
 

@@ -5,7 +5,7 @@ namespace IRB.VirtualCPU
 	public class VCPUMemory
 	{
 		private static uint uiMinFreeAddress = 0x0;
-		private static uint uiMaxFreeAddress = 0x9ffff;
+		private uint uiMaxFreeAddress = 0x9ffff;
 		private static uint uiMemorySize = 0xa0000;
 
 		private byte[] aMemory = new byte[uiMemorySize];
@@ -441,6 +441,17 @@ namespace IRB.VirtualCPU
 			}
 
 			return false;
+		}
+
+		/// <summary>
+		/// Takes the memory from segment up away from DOS, for the host's own use: new blocks
+		/// end below it. A block that already reaches into it has to shrink out of it.
+		/// </summary>
+		public void ReserveTop(ushort segment)
+		{
+			this.uiMaxFreeAddress = Math.Min(this.uiMaxFreeAddress, VCPU.ToLinearAddress(segment, 0) - 1);
+
+			AdjustFreeMemoryRange();
 		}
 
 		private void AdjustFreeMemoryRange()
