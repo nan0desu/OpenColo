@@ -356,8 +356,7 @@ namespace OpenColo
 		}
 
 		/// <summary>
-		/// The game's INT 8 handler at 1a29:0004, step by step with the same variables. Sound
-		/// driver calls are left out, there is no driver.
+		/// The game's INT 8 handler at 1a29:0004, step by step with the same variables
 		/// </summary>
 		private void GameTimerInterrupt()
 		{
@@ -369,6 +368,10 @@ namespace OpenColo
 
 			if ((fastTicks & 1) != 0)
 				return;
+
+			// 304.4 Hz: the sound driver's music tick (1059:0067), while it has asked for it
+			if (memory.ReadUInt8(DataSegment, 0x92f4) != 0)
+				CallSoundDriver(0xa664);
 
 			byte divider = (byte)(memory.ReadUInt8(DataSegment, 0x376) - 1);
 			memory.WriteUInt8(DataSegment, 0x376, divider);
@@ -385,8 +388,20 @@ namespace OpenColo
 				return;
 			}
 
-			// 60.88 Hz: the game tick
+			// 60.88 Hz: the game tick. With a driver loaded, its status (1059:0063) turns the music
+			// tick on when positive and off when negative
 			memory.WriteUInt8(DataSegment, 0x376, 5);
+
+			if (memory.ReadUInt8(DataSegment, 0x92f6) != 0)
+			{
+				short status = (short)CallSoundDriver(0xa660);
+
+				if (status > 0)
+					memory.WriteUInt16(DataSegment, 0x92f4, 0xffff);
+				else if (status < 0)
+					memory.WriteUInt16(DataSegment, 0x92f4, 0);
+			}
+
 			memory.WriteUInt32(DataSegment, 0x92e8, memory.ReadUInt32(DataSegment, 0x92e8) + 1);
 
 			if (memory.ReadUInt16(DataSegment, 0x92f0) == 0 || memory.ReadUInt16(DataSegment, 0x92f2) != 0)
@@ -422,6 +437,26 @@ namespace OpenColo
 			memory.WriteUInt16(DataSegment, 0x92f2, 0);
 
 			registers.Restore(this.oCPU);
+		}
+
+		/// <summary>
+		/// A sound driver entry, through its vector in DGROUP, on the stack the handler keeps for
+		/// the driver (DS:484 + FEh). Returns AX.
+		/// </summary>
+		private ushort CallSoundDriver(ushort vector)
+		{
+			VCPUMemory memory = this.oCPU.Memory;
+			Registers registers = new(this.oCPU);
+
+			this.oCPU.DS.UInt16 = DataSegment;
+			this.oCPU.SS.UInt16 = DataSegment;
+			this.oCPU.SP.UInt16 = 0x484 + 0xfe;
+			CallFar(memory.ReadUInt32(DataSegment, vector));
+
+			ushort result = this.oCPU.AX.UInt16;
+			registers.Restore(this.oCPU);
+
+			return result;
 		}
 
 		/// <summary>Every third game tick goes to the BIOS, which also has NumLock turned off</summary>

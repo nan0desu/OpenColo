@@ -65,7 +65,7 @@ The host starts VICEROY.EXE at the C runtime's `Start`, skipping the overlay man
 doesn't emulate the timer interrupt or the mouse driver; it runs their effect on the game
 thread between memory accesses (`VCPU.DoEvents`): the BIOS tick count, or once the game has
 installed its INT 8 handler, a C# copy of that handler that calls the game's own color cycling
-callback; and the game's INT 33h event handler when the mouse moves. The PIT counter and the
+callback and the sound driver; and the game's INT 33h event handler when the mouse moves. The PIT counter and the
 VGA retrace bit follow real time, which is what the game's VGA timing calibration measures.
 
 ## Thanks
