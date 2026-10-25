@@ -3,7 +3,8 @@
 Sid Meier's Colonization (DOS, VICEROY.EXE v3.0) running as C# on a virtual x86 CPU,
 in the style of [OpenCivOne](https://codeberg.org/rhorvat/OpenCivOne).
 
-The game code comes from the Disassembler, which turns
+The game code comes from the [Disassembler](https://github.com/nan0desu/Disassembler/tree/colonization)
+(`colonization` branch), which turns
 every function of VICEROY.EXE and its 31 overlays into C# calls on `IRB.VirtualCPU.VCPU`.
 This repository is the host: the CPU, DOS/BIOS services, a mode 13h VGA, and an Avalonia window.
 
@@ -25,12 +26,18 @@ This repository is the host: the CPU, DOS/BIOS services, a mode 13h VGA, and an 
 
 ## Build and run
 
-The game code is generated, not kept here. Generate it with the Disassembler (run from its
-repository root, the paths are relative) and copy it into `src/Generated`:
+The game code is generated, not kept here. Generate it with the
+[Disassembler](https://github.com/nan0desu/Disassembler/tree/colonization) from your own copy
+of the game and copy it into `src/Generated`. The Disassembler reads the game from
+`GameSRC/COLONIZE` and must be run from its repository root:
 
 ```sh
-dotnet <Disassembler>/bin/Debug/net9.0/Disassembler.dll colonization-runnable
-cp <Disassembler>/bin/Debug/net9.0/Output/ColonizationRunnable/*.cs src/Generated/
+git clone -b colonization https://github.com/nan0desu/Disassembler.git
+cd Disassembler
+mkdir -p GameSRC && cp -r <game directory> GameSRC/COLONIZE
+dotnet build src/Disassembler.csproj
+dotnet src/bin/Debug/net9.0/Disassembler.dll colonization-runnable
+cp src/bin/Debug/net9.0/Output/ColonizationRunnable/*.cs <OpenColo>/src/Generated/
 ```
 
 Or point the build at the output directory with `-p:GeneratedCodePath=<dir>`. Then:
